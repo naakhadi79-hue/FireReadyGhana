@@ -1,5 +1,4 @@
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -62,6 +61,10 @@ export default function SafetyScreen() {
   const [answers, setAnswers] = useState<
     Record<number, Record<number, string>>
   >({});
+  const [result, setResult] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
 
   function chooseAnswer(
     categoryId: number,
@@ -99,11 +102,10 @@ export default function SafetyScreen() {
     });
 
     if (answeredQuestions < totalQuestions) {
-      Alert.alert(
-        'Safety Check',
-        `Please answer all ${totalQuestions} questions before checking your results. You have answered ${answeredQuestions} of ${totalQuestions}.`
-      );
-
+      setResult({
+        title: 'Safety Check',
+        message: `Please answer all ${totalQuestions} questions before checking your results. You have answered ${answeredQuestions} of ${totalQuestions}.`,
+      });
       return;
     }
 
@@ -128,10 +130,10 @@ export default function SafetyScreen() {
         'Several areas of your fire safety need attention. Start with LPG/gas, electrical, cooking and evacuation safety.';
     }
 
-    Alert.alert(
-      resultTitle,
-      `${resultMessage}\n\nSafety score: ${yesAnswers}/${totalQuestions}`
-    );
+    setResult({
+      title: resultTitle,
+      message: `${resultMessage}\n\nSafety score: ${yesAnswers}/${totalQuestions}`,
+    });
   }
 
   return (
@@ -268,6 +270,14 @@ export default function SafetyScreen() {
           📊 CHECK MY SAFETY
         </Text>
       </TouchableOpacity>
+
+      {/* SAFETY CHECK RESULTS */}
+      {result && (
+        <View style={styles.resultCard}>
+          <Text style={styles.resultTitle}>{result.title}</Text>
+          <Text style={styles.resultMessage}>{result.message}</Text>
+        </View>
+      )}
 
       {/* EMERGENCY WARNING */}
       <View style={styles.emergencyCard}>
@@ -449,6 +459,31 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 17,
     fontWeight: 'bold',
+  },
+
+  resultCard: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 16,
+    padding: 18,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#8b0000',
+    elevation: 2,
+  },
+
+  resultTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#8b0000',
+  },
+
+  resultMessage: {
+    marginTop: 10,
+    fontSize: 15,
+    lineHeight: 23,
+    color: '#333333',
   },
 
   emergencyCard: {
