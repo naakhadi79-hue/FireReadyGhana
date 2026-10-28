@@ -1,3 +1,4 @@
+
 import {
   ScrollView,
   StyleSheet,
@@ -5,532 +6,410 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-const safetyQuestions = [
+type SafetyQuestion = {
+  question: string;
+  recommendation: string;
+};
+
+type SafetyCategory = {
+  id: number;
+  title: string;
+  questions: SafetyQuestion[];
+};
+
+const safetyQuestions: SafetyCategory[] = [
   {
     id: 1,
     title: '🔥 LPG / Gas Safety',
     questions: [
-      'Is your LPG cylinder kept upright in a safe, well-ventilated area?',
-      'Do you check the hose, regulator, and connections for damage or leaks?',
-      'Do you keep the area around the gas cylinder and cooker free from flammable materials?',
+      {
+        question: 'Is your LPG cylinder kept upright in a safe, well-ventilated area?',
+        recommendation:
+          'Keep the cylinder upright, stable, and in a well-ventilated place away from heat and ignition sources. Follow your supplier’s instructions.',
+      },
+      {
+        question: 'Do you check the hose, regulator, and connections for damage or leaks?',
+        recommendation:
+          'Ask a qualified gas technician or your LPG supplier to check damaged parts or suspected leaks. Never test for a leak with a flame.',
+      },
+      {
+        question: 'Do you keep the area around the gas cylinder and cooker free from flammable materials?',
+        recommendation:
+          'Move paper, cloth, fuel, and other combustible items away from the cylinder and cooker.',
+      },
     ],
   },
   {
     id: 2,
     title: '⚡ Electrical Safety',
     questions: [
-      'Are your electrical sockets and switches free from damage?',
-      'Do you avoid connecting too many appliances to one socket or extension?',
-      'Are damaged electrical cables and plugs replaced instead of being used?',
+      {
+        question: 'Are your electrical sockets and switches free from damage?',
+        recommendation:
+          'Stop using damaged, hot, sparking, or loose sockets and arrange for a qualified electrician to inspect them.',
+      },
+      {
+        question: 'Do you avoid connecting too many appliances to one socket or extension?',
+        recommendation:
+          'Avoid overloading sockets and extension leads. Plug high-power appliances into suitable outlets according to the manufacturer’s instructions.',
+      },
+      {
+        question: 'Are damaged electrical cables and plugs replaced instead of being used?',
+        recommendation:
+          'Stop using damaged cables or plugs. Do not touch exposed wires; have the item safely repaired or replaced by a qualified person.',
+      },
     ],
   },
   {
     id: 3,
     title: '🍳 Cooking Safety',
     questions: [
-      'Do you avoid leaving cooking unattended?',
-      'Are curtains, cloth, paper, and other flammable items kept away from the cooker?',
-      'Does everyone in your household know how to safely respond to a cooking fire?',
+      {
+        question: 'Do you avoid leaving cooking unattended?',
+        recommendation:
+          'Stay in the kitchen while cooking. If you must leave, turn off the cooker first when safe to do so.',
+      },
+      {
+        question: 'Are curtains, cloth, paper, and other flammable items kept away from the cooker?',
+        recommendation:
+          'Clear cloth, paper, curtains, and other items that could catch fire away from the cooking area.',
+      },
+      {
+        question: 'Does everyone in your household know how to safely respond to a cooking fire?',
+        recommendation:
+          'Discuss how to raise the alarm and evacuate. Never pour water on a cooking-oil fire. If it is not immediately safe to control, get out and call for help.',
+      },
     ],
   },
   {
     id: 4,
     title: '🕯️ Open Flame Safety',
     questions: [
-      'Are candles and other open flames kept away from flammable materials?',
-      'Are candles and open flames extinguished before leaving the room?',
-      'Are children kept away from matches, lighters, candles, and other open flames?',
+      {
+        question: 'Are candles and other open flames kept away from flammable materials?',
+        recommendation:
+          'Place candles on a stable, heat-resistant surface away from curtains, bedding, paper, and drafts.',
+      },
+      {
+        question: 'Are candles and open flames extinguished before leaving the room?',
+        recommendation:
+          'Extinguish candles and other open flames before leaving the room or going to sleep. Keep them attended while lit.',
+      },
     ],
   },
   {
     id: 5,
-    title: '🚪 Evacuation & Family Safety',
+    title: '🧯 Fire Extinguisher Safety',
     questions: [
-      'Does your household know at least two safe ways to leave the home?',
-      'Does everyone know where to meet outside after evacuating?',
-      'Can everyone in the household quickly find the emergency exit, especially at night?',
+      {
+        question: 'Is a fire extinguisher available and accessible in your home?',
+        recommendation:
+          'Place a suitable fire extinguisher in an accessible location and follow its instructions.',
+      },
+      {
+        question: 'Do you know how to use a fire extinguisher?',
+        recommendation:
+          'Learn how to use a suitable fire extinguisher properly. Check its label and ensure it is serviced regularly.',
+      },
     ],
   },
 ];
 
 export default function SafetyScreen() {
-  const [answers, setAnswers] = useState<
-    Record<number, Record<number, string>>
-  >({});
-  const [result, setResult] = useState<{
-    title: string;
-    message: string;
-  } | null>(null);
+  const [answers, setAnswers] = useState<Record<string, boolean>>({});
+  const [showResults, setShowResults] = useState(false);
 
-  function chooseAnswer(
-    categoryId: number,
-    questionIndex: number,
-    answer: string
-  ) {
-    setAnswers((previous) => ({
-      ...previous,
-      [categoryId]: {
-        ...previous[categoryId],
-        [questionIndex]: answer,
-      },
-    }));
-  }
+  const totalQuestions = safetyQuestions.reduce(
+    (total, category) => total + category.questions.length,
+    0
+  );
 
-  function checkSafety() {
-    let totalQuestions = 0;
-    let answeredQuestions = 0;
-    let yesAnswers = 0;
+  const answeredCount = Object.keys(answers).length;
 
-    safetyQuestions.forEach((category) => {
-      category.questions.forEach((_, index) => {
-        totalQuestions++;
+  const yesCount = Object.values(answers).filter(Boolean).length;
 
-        const answer = answers[category.id]?.[index];
+  const score =
+    answeredCount === totalQuestions
+      ? Math.round((yesCount / totalQuestions) * 100)
+      : 0;
 
-        if (answer) {
-          answeredQuestions++;
-        }
-
-        if (answer === 'Yes') {
-          yesAnswers++;
-        }
-      });
-    });
-
-    if (answeredQuestions < totalQuestions) {
-      setResult({
-        title: 'Safety Check',
-        message: `Please answer all ${totalQuestions} questions before checking your results. You have answered ${answeredQuestions} of ${totalQuestions}.`,
-      });
-      return;
-    }
-
-    let resultTitle = '';
-    let resultMessage = '';
-
-    if (yesAnswers === totalQuestions) {
-      resultTitle = 'Excellent Safety';
-      resultMessage =
-        'You answered Yes to every safety question. Keep maintaining these good safety habits and review your home regularly.';
-    } else if (yesAnswers >= 10) {
-      resultTitle = 'Good Start';
-      resultMessage =
-        'You have several good safety practices in place. Review the questions where you answered No and work on improving them.';
-    } else if (yesAnswers >= 5) {
-      resultTitle = 'Needs Improvement';
-      resultMessage =
-        'Some important fire-safety areas need attention. Review your No answers and make improvements where possible.';
-    } else {
-      resultTitle = 'High Risk Areas Identified';
-      resultMessage =
-        'Several areas of your fire safety need attention. Start with LPG/gas, electrical, cooking and evacuation safety.';
-    }
-
-    setResult({
-      title: resultTitle,
-      message: `${resultMessage}\n\nSafety score: ${yesAnswers}/${totalQuestions}`,
-    });
-  }
+  const recommendations = safetyQuestions.flatMap((category) =>
+    category.questions
+      .filter((question) => answers[question.question] === false)
+      .map((question) => ({
+        category: category.title,
+        question: question.question,
+        advice: question.recommendation,
+      }))
+  );
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-    >
-      {/* HEADER */}
-      <View style={styles.header}>
-        <Text style={styles.headerIcon}>🏠</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.heading}>🔥 FireReadyGhana</Text>
+      <Text style={styles.subheading}>Home Fire Safety Assessment</Text>
 
-        <Text style={styles.headerTitle}>
-          Home Safety Check
-        </Text>
+      <TouchableOpacity
+        style={styles.researchButton}
+        onPress={() => router.push('/research')}
+      >
+        <Text style={styles.researchButtonText}>View My Research</Text>
+      </TouchableOpacity>
 
-        <Text style={styles.headerText}>
-          Check common fire risks around your home and identify
-          areas that may need attention.
-        </Text>
-      </View>
-
-      {/* INTRODUCTION */}
-      <View style={styles.introCard}>
-        <Text style={styles.introTitle}>
-          🛡️ How This Works
-        </Text>
-
-        <Text style={styles.introText}>
-          Answer each question with Yes or No. At the end,
-          FireReady Ghana will give you a simple safety score
-          and help you identify areas that may need improvement.
-        </Text>
-
-        <Text style={styles.noteText}>
-          This safety check is for preparedness and education.
-          It does not replace a professional fire-safety
-          inspection.
-        </Text>
-      </View>
-
-      {/* SAFETY QUESTIONS */}
-      {safetyQuestions.map((category) => (
-        <View
-          key={category.id}
-          style={styles.categoryCard}
-        >
-          <Text style={styles.categoryTitle}>
-            {category.title}
+      {!showResults ? (
+        <>
+          <Text style={styles.progress}>
+            Answered {answeredCount} of {totalQuestions} questions
           </Text>
 
-          {category.questions.map(
-            (question, index) => {
-              const selectedAnswer =
-                answers[category.id]?.[index];
+          {safetyQuestions.map((category) => (
+            <View key={category.id} style={styles.category}>
+              <Text style={styles.categoryTitle}>{category.title}</Text>
 
-              return (
-                <View
-                  key={index}
-                  style={styles.questionContainer}
-                >
-                  <Text style={styles.question}>
-                    {question}
-                  </Text>
+              {category.questions.map((question, index) => (
+                <View key={index} style={styles.questionBox}>
+                  <Text style={styles.question}>{question.question}</Text>
 
-                  <View style={styles.answerRow}>
-                    {/* YES */}
+                  <View style={styles.buttonRow}>
                     <TouchableOpacity
                       style={[
                         styles.answerButton,
-                        selectedAnswer === 'Yes' &&
-                          styles.yesSelected,
+                        answers[question.question] === true &&
+                          styles.selectedYes,
                       ]}
-                      activeOpacity={0.8}
                       onPress={() =>
-                        chooseAnswer(
-                          category.id,
-                          index,
-                          'Yes'
-                        )
+                        setAnswers((previous) => ({
+                          ...previous,
+                          [question.question]: true,
+                        }))
                       }
                     >
-                      <Text
-                        style={[
-                          styles.answerText,
-                          selectedAnswer === 'Yes' &&
-                            styles.selectedAnswerText,
-                        ]}
-                      >
-                        ✓ Yes
-                      </Text>
+                      <Text style={styles.buttonText}>Yes</Text>
                     </TouchableOpacity>
 
-                    {/* NO */}
                     <TouchableOpacity
                       style={[
                         styles.answerButton,
-                        selectedAnswer === 'No' &&
-                          styles.noSelected,
+                        answers[question.question] === false &&
+                          styles.selectedNo,
                       ]}
-                      activeOpacity={0.8}
                       onPress={() =>
-                        chooseAnswer(
-                          category.id,
-                          index,
-                          'No'
-                        )
+                        setAnswers((previous) => ({
+                          ...previous,
+                          [question.question]: false,
+                        }))
                       }
                     >
-                      <Text
-                        style={[
-                          styles.answerText,
-                          selectedAnswer === 'No' &&
-                            styles.selectedAnswerText,
-                        ]}
-                      >
-                        ✕ No
-                      </Text>
+                      <Text style={styles.buttonText}>No</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
-              );
-            }
+              ))}
+            </View>
+          ))}
+
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              answeredCount !== totalQuestions && styles.disabledButton,
+            ]}
+            disabled={answeredCount !== totalQuestions}
+            onPress={() => setShowResults(true)}
+          >
+            <Text style={styles.submitText}>View My Results</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <View style={styles.resultsBox}>
+          <Text style={styles.resultsTitle}>Your Safety Results</Text>
+          <Text style={styles.score}>{score}%</Text>
+
+          <Text style={styles.summary}>
+            You answered Yes to {yesCount} of {totalQuestions} safety questions.
+          </Text>
+
+          <Text style={styles.categoryTitle}>Areas to Improve</Text>
+
+          {recommendations.length === 0 ? (
+            <Text style={styles.question}>
+              You answered Yes to every question. Continue practising fire
+              prevention and reviewing your safety measures.
+            </Text>
+          ) : (
+            recommendations.map((item, index) => (
+              <View key={index} style={styles.recommendation}>
+                <Text style={styles.question}>{item.category}</Text>
+                <Text style={styles.question}>{item.question}</Text>
+                <Text style={styles.advice}>{item.advice}</Text>
+              </View>
+            ))
           )}
-        </View>
-      ))}
 
-      {/* CHECK SAFETY BUTTON */}
-      <TouchableOpacity
-        style={styles.resultsButton}
-        activeOpacity={0.8}
-        onPress={checkSafety}
-      >
-        <Text style={styles.resultsButtonText}>
-          📊 CHECK MY SAFETY
-        </Text>
-      </TouchableOpacity>
+          <Text style={styles.disclaimer}>
+            This self-assessment is for educational purposes. It is not a
+            certified fire-risk inspection.
+          </Text>
 
-      {/* SAFETY CHECK RESULTS */}
-      {result && (
-        <View style={styles.resultCard}>
-          <Text style={styles.resultTitle}>{result.title}</Text>
-          <Text style={styles.resultMessage}>{result.message}</Text>
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={() => setShowResults(false)}
+          >
+            <Text style={styles.submitText}>Review My Answers</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.answerButton}
+            onPress={() => {
+              setAnswers({});
+              setShowResults(false);
+            }}
+          >
+            <Text style={styles.buttonText}>Start Again</Text>
+          </TouchableOpacity>
         </View>
       )}
-
-      {/* EMERGENCY WARNING */}
-      <View style={styles.emergencyCard}>
-        <Text style={styles.emergencyTitle}>
-          🚨 Active Fire?
-        </Text>
-
-        <Text style={styles.emergencyText}>
-          If there is an active fire, do not spend time
-          completing this safety check. Get yourself and
-          others to safety and contact the Ghana National
-          Fire Service on 192.
-        </Text>
-
-        <TouchableOpacity
-          style={styles.emergencyButton}
-          activeOpacity={0.8}
-          onPress={() => router.push('/emergency')}
-        >
-          <Text style={styles.emergencyButtonText}>
-            🚨 ENTER EMERGENCY MODE
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* BACK BUTTON */}
-      <TouchableOpacity
-        style={styles.backButton}
-        activeOpacity={0.8}
-        onPress={() => router.back()}
-      >
-        <Text style={styles.backButtonText}>
-          ← BACK TO HOME
-        </Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#fff7f5',
-  },
-
-  content: {
-    paddingBottom: 40,
-  },
-
-  header: {
-    paddingTop: 55,
-    paddingHorizontal: 22,
-    paddingBottom: 28,
-    backgroundColor: '#8b0000',
-    alignItems: 'center',
-  },
-
-  headerIcon: {
-    fontSize: 45,
-  },
-
-  headerTitle: {
-    marginTop: 8,
-    color: '#ffffff',
-    fontSize: 27,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-
-  headerText: {
-    marginTop: 8,
-    color: '#ffe5e5',
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-
-  introCard: {
-    margin: 20,
     padding: 20,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
-    elevation: 3,
+    paddingBottom: 40,
+    backgroundColor: '#F5F8F6',
   },
-
-  introTitle: {
-    fontSize: 20,
+  heading: {
+    fontSize: 26,
     fontWeight: 'bold',
-    color: '#8b0000',
+    color: '#14532D',
+    marginBottom: 6,
   },
-
-  introText: {
-    marginTop: 8,
-    color: '#555555',
-    fontSize: 14,
-    lineHeight: 21,
+  subheading: {
+    fontSize: 17,
+    marginBottom: 20,
+    color: '#374151',
   },
-
-  noteText: {
-    marginTop: 12,
-    color: '#777777',
-    fontSize: 13,
-    lineHeight: 20,
-    fontStyle: 'italic',
-  },
-
-  categoryCard: {
-    marginHorizontal: 20,
+  progress: {
+    fontSize: 15,
     marginBottom: 16,
-    padding: 18,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
-    elevation: 3,
+    color: '#374151',
   },
-
+  category: {
+    marginBottom: 24,
+  },
   categoryTitle: {
     fontSize: 19,
     fontWeight: 'bold',
-    color: '#8b0000',
-    marginBottom: 15,
+    marginBottom: 12,
+    color: '#14532D',
   },
-
-  questionContainer: {
-    marginBottom: 20,
+  questionBox: {
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 12,
   },
-
   question: {
-    color: '#333333',
     fontSize: 15,
-    lineHeight: 21,
+    lineHeight: 22,
+    color: '#1F2937',
+    marginBottom: 10,
   },
-
-  answerRow: {
+  buttonRow: {
     flexDirection: 'row',
-    marginTop: 10,
-    gap: 10,
+    gap: 12,
   },
-
   answerButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 9,
+    padding: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#dddddd',
+    borderColor: '#9CA3AF',
     alignItems: 'center',
-    backgroundColor: '#fafafa',
+    marginVertical: 5,
   },
-
-  yesSelected: {
-    backgroundColor: '#187a3d',
-    borderColor: '#187a3d',
+  selectedYes: {
+    backgroundColor: '#BBF7D0',
+    borderColor: '#15803D',
   },
-
-  noSelected: {
-    backgroundColor: '#8b0000',
-    borderColor: '#8b0000',
+  selectedNo: {
+    backgroundColor: '#FECACA',
+    borderColor: '#B91C1C',
   },
-
-  answerText: {
-    color: '#333333',
+  buttonText: {
+    fontSize: 15,
     fontWeight: '600',
-    fontSize: 15,
+    color: '#111827',
   },
-
-  selectedAnswerText: {
-    color: '#ffffff',
-  },
-
-  resultsButton: {
-    marginHorizontal: 20,
-    marginTop: 5,
-    paddingVertical: 17,
-    borderRadius: 12,
-    backgroundColor: '#8b0000',
-    alignItems: 'center',
-  },
-
-  resultsButtonText: {
-    color: '#ffffff',
-    fontSize: 17,
-    fontWeight: 'bold',
-  },
-
-  resultCard: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 16,
-    padding: 18,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#8b0000',
-    elevation: 2,
-  },
-
-  resultTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#8b0000',
-  },
-
-  resultMessage: {
-    marginTop: 10,
-    fontSize: 15,
-    lineHeight: 23,
-    color: '#333333',
-  },
-
-  emergencyCard: {
-    margin: 20,
-    padding: 20,
-    borderRadius: 16,
-    backgroundColor: '#ffe8e8',
-  },
-
-  emergencyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#8b0000',
-  },
-
-  emergencyText: {
-    marginTop: 8,
-    color: '#444444',
-    fontSize: 14,
-    lineHeight: 21,
-  },
-
-  emergencyButton: {
-    marginTop: 15,
-    paddingVertical: 15,
+  submitButton: {
+    backgroundColor: '#166534',
+    padding: 16,
     borderRadius: 10,
-    backgroundColor: '#d00000',
     alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 12,
   },
-
-  emergencyButtonText: {
-    color: '#ffffff',
+  disabledButton: {
+    backgroundColor: '#9CA3AF',
+  },
+  submitText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: 'bold',
-    fontSize: 15,
   },
-
-  backButton: {
-    marginHorizontal: 20,
-    paddingVertical: 14,
+  resultsBox: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
     borderRadius: 12,
-    backgroundColor: '#333333',
-    alignItems: 'center',
   },
-
-  backButtonText: {
-    color: '#ffffff',
-    fontSize: 15,
+  resultsTitle: {
+    fontSize: 23,
+    fontWeight: 'bold',
+    color: '#14532D',
+    marginBottom: 12,
+  },
+  score: {
+    fontSize: 42,
+    fontWeight: 'bold',
+    color: '#166534',
+    marginBottom: 10,
+  },
+  summary: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 20,
+    color: '#374151',
+  },
+  recommendation: {
+    padding: 12,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  advice: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#374151',
+  },
+  disclaimer: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#6B7280',
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  researchButton: {
+    backgroundColor: '#166534',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  researchButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });
